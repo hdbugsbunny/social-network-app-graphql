@@ -3,14 +3,14 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const mongoose = require("mongoose");
 const multer = require("multer");
+const { createHandler } = require("graphql-http/lib/use/express");
 const app = express();
 const port = 8080;
 
 require("dotenv").config();
 
-const feedRoutes = require("./routes/feed");
-const authRoutes = require("./routes/auth");
-const userRoutes = require("./routes/user");
+const graphqlSchema = require("./graphql/schema");
+const graphqlResolver = require("./graphql/resolvers");
 
 const fileStorage = multer.diskStorage({
   destination: (req, file, cb) => {
@@ -48,9 +48,10 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use("/feed", feedRoutes);
-app.use("/auth", authRoutes);
-app.use("/user", userRoutes);
+app.use(
+  "/graphql",
+  createHandler({ schema: graphqlSchema, rootValue: graphqlResolver })
+);
 
 app.use((error, req, res, next) => {
   const { statusCode, message, data } = error;
@@ -60,13 +61,9 @@ app.use((error, req, res, next) => {
 mongoose
   .connect(process.env.MONGODB_URI)
   .then(() => {
-    const server = app.listen(port, () =>
+    app.listen(port, () =>
       console.log(`Example app listening on port ${port}!`)
     );
-    const io = require("./socket").init(server);
-    io.on("connection", () => {
-      console.log("Client connected");
-    });
   })
   .catch((error) => {
     console.log("🚀 ~ error:", error);
