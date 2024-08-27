@@ -12,6 +12,8 @@ require("dotenv").config();
 const graphqlSchema = require("./graphql/schema");
 const graphqlResolver = require("./graphql/resolvers");
 
+const authMiddleware = require("./middleware/auth");
+
 const fileStorage = multer.diskStorage({
   destination: (req, file, cb) => {
     cb(null, "images");
@@ -51,11 +53,14 @@ app.use((req, res, next) => {
   next();
 });
 
+app.use(authMiddleware);
+
 app.use(
   "/graphql",
   createHandler({
     schema: graphqlSchema,
     rootValue: graphqlResolver,
+    context: (req) => req.raw,
     formatError(err) {
       if (!err.originalError) {
         return err;

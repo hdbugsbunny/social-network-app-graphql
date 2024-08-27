@@ -63,6 +63,12 @@ module.exports = {
     return { token: token, userId: user._id.toString() };
   },
   createPost: async function ({ postInput }, req) {
+    if (!req.isAuth) {
+      const error = new Error("User Not Authenticated");
+      error.code = 401;
+      throw error;
+    }
+
     const { title, content, imageUrl } = postInput;
     const errors = [];
     if (validator.isEmpty(title) || !validator.isLength(title, { min: 5 })) {
@@ -81,8 +87,17 @@ module.exports = {
       throw error;
     }
 
-    const newPost = new Post({ title, content, imageUrl });
+    const creator = await User.findById(req.userId);
+    if (!creator) {
+      const error = new Error("Invalid User!");
+      error.code = 401;
+      throw error;
+    }
+
+    const newPost = new Post({ title, content, imageUrl, creator });
     const createdPost = await newPost.save();
+    creator.posts.push(createdPost);
+    await creator.save();
 
     return {
       ...createdPost._doc,

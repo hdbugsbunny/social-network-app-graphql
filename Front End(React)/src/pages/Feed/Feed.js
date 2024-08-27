@@ -39,16 +39,16 @@ class Feed extends Component {
       .catch(this.catchError);
 
     this.loadPosts();
-    const socket = openSocket("http://localhost:8080");
-    socket.on("post", (data) => {
-      if (data.action === "create") {
-        this.addPost(data.post);
-      } else if (data.action === "update") {
-        this.updatePost(data.post);
-      } else if (data.action === "delete") {
-        this.loadPosts();
-      }
-    });
+    // const socket = openSocket("http://localhost:8080");
+    // socket.on("post", (data) => {
+    //   if (data.action === "create") {
+    //     this.addPost(data.post);
+    //   } else if (data.action === "update") {
+    //     this.updatePost(data.post);
+    //   } else if (data.action === "delete") {
+    //     this.loadPosts();
+    //   }
+    // });
   }
 
   addPost = (post) => {
@@ -155,34 +155,49 @@ class Feed extends Component {
   };
 
   finishEditHandler = (postData) => {
-    this.setState({
-      editLoading: true,
-    });
-    const formData = new FormData();
-    formData.append("title", postData.title);
-    formData.append("content", postData.content);
-    formData.append("image", postData.image);
-    let url = "http://localhost:8080/feed/createPost";
-    let method = "POST";
-    if (this.state.editPost) {
-      url = `http://localhost:8080/feed/posts/${this.state.editPost._id}`;
-      method = "PUT";
-    }
+    this.setState({ editLoading: true });
+    // const formData = new FormData();
+    // formData.append("title", postData.title);
+    // formData.append("content", postData.content);
+    // formData.append("image", postData.image);
 
-    fetch(url, {
-      method,
+    let graphqlQuery = {
+      query: `
+        mutation {
+          createPost(
+          postInput: { 
+              title: "${postData.title}",
+              content:"${postData.content}",
+              imageUrl:"some url"
+            }
+          ) {
+              _id
+              title
+              content
+              imageUrl
+              creator {
+                name
+              }
+              createdAt
+          }
+        }
+      `,
+    };
+    fetch("http://localhost:8080/graphql", {
+      method: "POST",
       headers: {
         Authorization: `Bearer ${this.props.token}`,
+        "Content-Type": "application/json",
       },
-      body: formData,
+      body: JSON.stringify(graphqlQuery),
     })
       .then((res) => {
-        if (res.status !== 200 && res.status !== 201) {
-          throw new Error("Creating or editing a post failed!");
-        }
         return res.json();
       })
       .then((resData) => {
+        if (resData.errors) {
+          throw new Error("Creating or editing a post failed!");
+        }
         console.log("🚀 ~ Feed ~ .then ~ resData:", resData);
         this.setState(() => {
           return {
