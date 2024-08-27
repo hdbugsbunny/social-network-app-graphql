@@ -90,23 +90,44 @@ class Feed extends Component {
       page--;
       this.setState({ postPage: page });
     }
-    fetch(`http://localhost:8080/feed/posts?page=${page}`, {
+    const graphqlQuery = {
+      query: `
+        {
+          userPosts {
+            posts {
+              _id
+              title
+              content
+              creator {
+                name
+              }
+              createdAt
+            }
+            totalPosts
+          }
+        }
+      `,
+    };
+    fetch("http://localhost:8080/graphql", {
+      method: "POST",
       headers: {
         Authorization: `Bearer ${this.props.token}`,
+        "Content-Type": "application/json",
       },
+      body: JSON.stringify(graphqlQuery),
     })
       .then((res) => {
-        if (res.status !== 200) {
-          throw new Error("Failed to fetch posts.");
-        }
         return res.json();
       })
       .then((resData) => {
+        if (resData.errors) {
+          throw new Error("Failed to fetch posts.");
+        }
         this.setState({
-          posts: resData.posts.map((post) => {
+          posts: resData.data.userPosts.posts.map((post) => {
             return { ...post, imagePath: post.imageUrl };
           }),
-          totalPosts: resData.totalItems,
+          totalPosts: resData.data.userPosts.totalPosts,
           postsLoading: false,
         });
       })
@@ -199,8 +220,25 @@ class Feed extends Component {
           throw new Error("Creating or editing a post failed!");
         }
         console.log("🚀 ~ Feed ~ .then ~ resData:", resData);
-        this.setState(() => {
+        const post = {
+          _id: resData.data.createPost._id,
+          title: resData.data.createPost.title,
+          content: resData.data.createPost.content,
+          creator: resData.data.createPost.creator,
+          createdAt: resData.data.createPost.createdAt,
+        };
+        this.setState((prevState) => {
+          let updatedPosts = [...prevState.posts];
+          if (prevState.editPost) {
+            const postIndex = prevState.posts.findIndex(
+              (p) => p._id === prevState.editPost._id
+            );
+            updatedPosts[postIndex] = post;
+          } else {
+            updatedPosts.unshift(post);
+          }
           return {
+            posts: updatedPosts,
             isEditing: false,
             editPost: null,
             editLoading: false,
