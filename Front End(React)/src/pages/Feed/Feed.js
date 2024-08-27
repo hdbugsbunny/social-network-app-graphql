@@ -176,7 +176,6 @@ class Feed extends Component {
   };
 
   finishEditHandler = (postData) => {
-    console.log("🚀 ~ Feed ~ postData:", postData)
     this.setState({ editLoading: true });
     const formData = new FormData();
     formData.append("image", postData.image);
