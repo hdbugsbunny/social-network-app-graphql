@@ -1,3 +1,4 @@
+const fs = require("fs");
 const path = require("path");
 const express = require("express");
 const bodyParser = require("body-parser");
@@ -24,7 +25,7 @@ const fileStorage = multer.diskStorage({
 });
 
 const imageFilter = (req, file, cb) => {
-  const validImages = ["image/png", "image/jpeg", "image/jpg"];
+  const validImages = ["image/png", "image/jpeg", "image/jpg", "image/svg+xml"];
   if (validImages.includes(file.mimetype)) {
     cb(null, true);
   } else {
@@ -54,6 +55,27 @@ app.use((req, res, next) => {
 });
 
 app.use(authMiddleware);
+
+app.put("/post-image", (req, res, next) => {
+  if (!req.isAuth) {
+    throw new Error("User Not Authenticated!");
+  }
+
+  if (!req.file) {
+    return res.status(200).json({ message: "No File Provided!" });
+  }
+
+  if (req.body && req.body.oldPath) {
+    const filePath = path.join(__dirname, "..", req.body.oldPath);
+    fs.unlink(filePath, (err) => {
+      console.log("🚀 ~ fs.unlink ~ err:", err);
+    });
+  }
+
+  return res
+    .status(201)
+    .json({ message: "File Stored!", filePath: req.file.path });
+});
 
 app.use(
   "/graphql",
