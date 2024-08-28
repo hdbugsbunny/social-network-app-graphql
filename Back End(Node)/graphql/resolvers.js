@@ -1,3 +1,5 @@
+const fs = require("fs");
+const path = require("path");
 const bcrypt = require("bcryptjs");
 const validator = require("validator");
 const jwt = require("jsonwebtoken");
@@ -208,5 +210,36 @@ module.exports = {
       createdAt: updatedPost.createdAt.toISOString(),
       updatedAt: updatedPost.updatedAt.toISOString(),
     };
+  },
+  deletePost: async function ({ id }, req) {
+    if (!req.isAuth) {
+      const error = new Error("User Not Authenticated");
+      error.code = 401;
+      throw error;
+    }
+
+    const post = await Post.findById(id);
+    if (!post) {
+      const error = new Error(`Post ${id} not found`);
+      error.code = 404;
+      throw error;
+    }
+
+    if (post.creator.toString() !== req.userId.toString()) {
+      const error = new Error(`User is Not Authorized to Delete ${id} Post!`);
+      error.code = 403;
+      throw error;
+    }
+
+    const filePath = path.join(__dirname, "..", post.imageUrl);
+    fs.unlink(filePath, (err) => {
+      console.log("🚀 ~ fs.unlink ~ err:", err);
+    });
+    await Post.findByIdAndDelete(id);
+    const user = await User.findById(req.userId);
+    user.posts.pull(id);
+    await user.save();
+
+    return true;
   },
 };
